@@ -4,9 +4,12 @@ A comprehensive price monitoring solution for Amazon and Flipkart products in th
 
 ## 🎯 Features
 
+- **User Authentication**: JWT-based authentication with secure password hashing
 - **Smart Scheduling**: Due-based scheduler (NOT per-product cron) with dynamic priority
 - **Multi-Retailer Support**: Amazon India and Flipkart
 - **Intelligent Alerts**: Target price, percentage drops, lowest in 30/90 days
+- **Daily Digest**: Morning summary of watched products that dropped in price (9 AM daily)
+- **Cross-Retailer Comparison**: Alerts when same product is cheaper on another retailer (≥5% difference)
 - **Price History**: Detailed tracking with multiple price types (MRP, coupon, bank offers, etc.)
 - **Sale Campaigns**: Automatic priority boost during Big Billion Days / Great Indian Festival
 - **Push Notifications**: Firebase Cloud Messaging with console fallback
@@ -143,11 +146,12 @@ npm run test:cov
 ```
 
 Tests cover:
-- Scheduler due-based selection
-- Next check time calculation
-- Alert rule evaluation
-- Alert cooldown logic
-- URL parsing for Amazon/Flipkart
+- **Authentication**: User registration, login, JWT validation
+- **Scheduler**: Due-based selection, next check time calculation
+- **Alerts**: Rule evaluation, cooldown logic
+- **Daily Digest**: Price drop detection, message generation
+- **Cross-Retailer**: Price comparison, alert triggering
+- **Price Providers**: URL parsing for Amazon/Flipkart
 
 ## 🗄️ Database Schema
 
@@ -250,29 +254,46 @@ This starts:
 Key endpoints:
 
 ```
+# Authentication (public)
+POST   /api/auth/register         # Register new user
+POST   /api/auth/login            # Login (returns JWT)
+GET    /api/auth/me               # Get current user (requires JWT)
+
+# Products (create requires JWT)
 POST   /api/products              # Add product from URL
 GET    /api/products              # List products
 GET    /api/products/:id          # Get product details
 
+# Watches (requires JWT, scoped to current user)
 POST   /api/watches               # Create watch rule
-GET    /api/watches/user/:userId  # User's watches
+GET    /api/watches               # Current user's watches
+GET    /api/watches/:id           # Get watch details
 DELETE /api/watches/:id           # Deactivate watch
 
-GET    /api/alerts/user/:userId   # User's alerts
+# Alerts (requires JWT, scoped to current user)
+GET    /api/alerts                # Current user's alerts
 GET    /api/prices/history/:listingId  # Price history
 
+# Campaigns
 GET    /api/campaigns             # List campaigns
 POST   /api/campaigns             # Create campaign
 
+# Notifications
 POST   /api/notifications/register  # Register FCM token
 ```
 
+All endpoints requiring authentication need `Authorization: Bearer <token>` header.
+
 ## ✅ What's Implemented
 
+- ✅ JWT authentication with bcrypt password hashing
+- ✅ User-scoped watches and alerts
 - ✅ Complete NestJS API with all modules
 - ✅ Prisma schema with comprehensive data model
 - ✅ Due-based scheduler (NOT per-product cron)
 - ✅ BullMQ workers with rate limiting
+- ✅ Daily digest job (9 AM: "N watched products dropped today")
+- ✅ Cross-retailer price comparison (alerts when ≥5% difference)
 - ✅ Mock price provider (working)
 - ✅ Amazon/Flipkart provider interfaces (TODO: API integration)
 - ✅ Price snapshot deduplication
@@ -281,8 +302,8 @@ POST   /api/notifications/register  # Register FCM token
 - ✅ Next.js admin dashboard
 - ✅ React Native Expo mobile app skeleton
 - ✅ Docker Compose setup
-- ✅ Unit tests
-- ✅ Seed script
+- ✅ Unit tests (auth, scheduler, alerts, daily digest, cross-retailer)
+- ✅ Seed script with demo user
 - ✅ Complete documentation
 
 ## 🔜 TODO (Production Readiness)
@@ -329,10 +350,7 @@ private async callAffiliateAPI(productId: string): Promise<PriceFetchResult> {
 
 ### Other Production TODOs
 
-- User authentication & authorization
 - User management in admin dashboard
-- Daily digest email/notification job
-- Cross-retailer price comparison
 - Lowest-ever alert detection
 - Admin UI for all entities (campaigns, users, etc.)
 - Rate limiting on API endpoints

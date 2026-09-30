@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { BullModule } from '@nestjs/bullmq';
 import { PrismaModule } from './prisma/prisma.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { ProductsModule } from './modules/products/products.module';
 import { WatchesModule } from './modules/watches/watches.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
@@ -27,6 +28,7 @@ import { WorkersModule } from './modules/workers/workers.module';
       },
     }),
     PrismaModule,
+    AuthModule,
     ProductsModule,
     WatchesModule,
     AlertsModule,

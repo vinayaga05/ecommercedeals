@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { PricesService } from '../prices/prices.service';
 import { WatchesService } from '../watches/watches.service';
 import { AlertsService } from '../alerts/alerts.service';
+import { CrossRetailerService } from '../alerts/cross-retailer.service';
 import { CampaignsService } from '../campaigns/campaigns.service';
 import { SchedulerService } from '../scheduler/scheduler.service';
 
@@ -23,6 +24,7 @@ export class PriceCheckWorker extends WorkerHost {
     private pricesService: PricesService,
     private watchesService: WatchesService,
     private alertsService: AlertsService,
+    private crossRetailerService: CrossRetailerService,
     private campaignsService: CampaignsService,
     private schedulerService: SchedulerService,
   ) {
@@ -64,6 +66,8 @@ export class PriceCheckWorker extends WorkerHost {
             listingId,
           );
         }
+
+        await this.crossRetailerService.checkCrossRetailerPrices(listingId);
       }
 
       const isActiveCampaign = await this.campaignsService.isActiveCampaign(

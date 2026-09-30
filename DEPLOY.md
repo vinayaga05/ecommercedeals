@@ -99,7 +99,7 @@ REDIS_PASSWORD=""
 # API
 API_PORT=3000
 NODE_ENV=production
-JWT_SECRET="CHANGE_THIS_TO_RANDOM_STRING"
+JWT_SECRET="CHANGE_THIS_TO_RANDOM_STRING_USE_openssl_rand_base64_32"
 
 # Price Provider (start with mock, add real credentials later)
 PRICE_PROVIDER=mock

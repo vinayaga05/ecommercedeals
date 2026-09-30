@@ -1,18 +1,23 @@
 import { PrismaClient, Retailer, Priority, PriceConfidence } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('🌱 Seeding database...');
 
+  const hashedPassword = await bcrypt.hash('password123', 10);
+
   const user1 = await prisma.user.create({
     data: {
       email: 'demo@example.com',
       name: 'Demo User',
+      passwordHash: hashedPassword,
     },
   });
 
   console.log('✅ Created user:', user1.email);
+  console.log('   Password: password123');
 
   const product1 = await prisma.product.create({
     data: {

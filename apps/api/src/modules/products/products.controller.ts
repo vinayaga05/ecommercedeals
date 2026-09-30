@@ -1,10 +1,10 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 class CreateProductDto {
   url: string;
-  userId?: string;
 }
 
 @ApiTags('products')
@@ -13,12 +13,11 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Add product from URL' })
   create(@Body() createProductDto: CreateProductDto) {
-    return this.productsService.createFromUrl(
-      createProductDto.url,
-      createProductDto.userId,
-    );
+    return this.productsService.createFromUrl(createProductDto.url);
   }
 
   @Get()
