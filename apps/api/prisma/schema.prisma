@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  watches      PriceWatch[]
+  alerts       Alert[]
+  deviceTokens DeviceToken[]
+
+  @@index([email])
+}
+
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  brand       String?
+  category    String?
+  imageUrl    String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  listings RetailerListing[]
+
+  @@index([name])
+}
+
+enum Retailer {
+  AMAZON
+  FLIPKART
+}
+
+enum Priority {
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model RetailerListing {
+  id               String    @id @default(cuid())
+  productId        String
+  retailer         Retailer
+  retailerProductId String
+  url              String
+  seller           String?
+  availability     Boolean   @default(true)
+  priority         Priority  @default(NORMAL)
+  nextCheckAt      DateTime
+  lastCheckedAt    DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  priceSnapshots PriceSnapshot[]
+  watches        PriceWatch[]
+
+  @@unique([retailer, retailerProductId])
+  @@index([nextCheckAt])
+  @@index([retailer, retailerProductId])
+  @@index([productId])
+}
+
+enum PriceConfidence {
+  CONFIRMED
+  CONDITIONAL
+  ESTIMATED
+}
+
+model PriceSnapshot {
+  id          String           @id @default(cuid())
+  listingId   String
+  listedPrice Decimal          @db.Decimal(10, 2)
+  mrp         Decimal?         @db.Decimal(10, 2)
+  couponPrice Decimal?         @db.Decimal(10, 2)
+  bankOffer   Decimal?         @db.Decimal(10, 2)
+  bankOfferLabel String?
+  exchangePrice Decimal?       @db.Decimal(10, 2)
+  memberPrice Decimal?         @db.Decimal(10, 2)
+  effectivePrice Decimal       @db.Decimal(10, 2)
+  confidence  PriceConfidence  @default(CONFIRMED)
+  currency    String           @default("INR")
+  createdAt   DateTime         @default(now())
+
+  listing RetailerListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, createdAt])
+  @@index([createdAt])
+}
+
+model PriceWatch {
+  id              String   @id @default(cuid())
+  userId          String
+  listingId       String
+  targetPrice     Decimal? @db.Decimal(10, 2)
+  dropPercentage  Int?
+  lowestIn30Days  Boolean  @default(false)
+  lowestIn90Days  Boolean  @default(false)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing RetailerListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  alerts  Alert[]
+
+  @@unique([userId, listingId])
+  @@index([userId])
+  @@index([listingId])
+  @@index([active])
+}
+
+enum AlertType {
+  TARGET_PRICE_MET
+  DROP_PERCENTAGE
+  LOWEST_30_DAYS
+  LOWEST_90_DAYS
+  LOWEST_EVER
+  CROSS_RETAILER
+  DAILY_DIGEST
+}
+
+enum AlertStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model Alert {
+  id              String      @id @default(cuid())
+  userId          String
+  watchId         String
+  type            AlertType
+  message         String
+  effectivePrice  Decimal     @db.Decimal(10, 2)
+  previousPrice   Decimal?    @db.Decimal(10, 2)
+  status          AlertStatus @default(PENDING)
+  sentAt          DateTime?
+  createdAt       DateTime    @default(now())
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  watch PriceWatch @relation(fields: [watchId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([watchId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model SaleCampaign {
+  id          String    @id @default(cuid())
+  name        String
+  retailer    Retailer
+  startDate   DateTime
+  endDate     DateTime
+  active      Boolean   @default(true)
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([retailer, active])
+  @@index([startDate, endDate])
+}

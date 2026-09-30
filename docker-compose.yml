@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pricewatch-postgres
+    environment:
+      POSTGRES_USER: pricewatch
+      POSTGRES_PASSWORD: pricewatch
+      POSTGRES_DB: pricewatch
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pricewatch"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: pricewatch-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: pricewatch-api
+    environment:
+      DATABASE_URL: "postgresql://pricewatch:pricewatch@postgres:5432/pricewatch?schema=public"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      API_PORT: 3000
+      NODE_ENV: production
+      PRICE_PROVIDER: mock
+      SCHEDULER_TICK_INTERVAL_MS: 60000
+      WORKER_CONCURRENCY: 5
+      NOTIFICATION_FALLBACK: console
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    command: sh -c "npx prisma migrate deploy && npm run start:prod"
+
+  worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.worker
+    environment:
+      DATABASE_URL: "postgresql://pricewatch:pricewatch@postgres:5432/pricewatch?schema=public"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      NODE_ENV: production
+      PRICE_PROVIDER: mock
+      WORKER_CONCURRENCY: 5
+      NOTIFICATION_FALLBACK: console
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: pricewatch-web
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:3000/api
+    ports:
+      - "3001:3001"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: pricewatch-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api
+      - web
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+  caddy-data:
+  caddy-config:
