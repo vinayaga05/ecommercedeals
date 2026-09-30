@@ -6,18 +6,26 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Seeding database...');
 
-  const hashedPassword = await bcrypt.hash('password123', 10);
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+  
+  let userData: any = {
+    email: 'demo@example.com',
+    name: 'Demo User',
+  };
+
+  if (isDevelopment) {
+    const hashedPassword = await bcrypt.hash('password123', 10);
+    userData.passwordHash = hashedPassword;
+    console.log('✅ Created user:', userData.email);
+    console.log('   Password: password123 (dev mode only)');
+  } else {
+    console.log('✅ Created user:', userData.email);
+    console.log('   ⚠️  No password set (production mode - user must register via API)');
+  }
 
   const user1 = await prisma.user.create({
-    data: {
-      email: 'demo@example.com',
-      name: 'Demo User',
-      passwordHash: hashedPassword,
-    },
+    data: userData,
   });
-
-  console.log('✅ Created user:', user1.email);
-  console.log('   Password: password123');
 
   const product1 = await prisma.product.create({
     data: {

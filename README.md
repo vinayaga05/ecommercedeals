@@ -151,7 +151,9 @@ Tests cover:
 - **Alerts**: Rule evaluation, cooldown logic
 - **Daily Digest**: Price drop detection, message generation
 - **Cross-Retailer**: Price comparison, alert triggering
-- **Price Providers**: URL parsing for Amazon/Flipkart
+- **Price Providers**: 
+  - Mock provider: URL parsing, price variations
+  - **Flipkart provider**: API calls, error handling, retries, rate limiting, response parsing (fixture-based, no live calls)
 
 ## 🗄️ Database Schema
 
@@ -184,13 +186,27 @@ Three provider implementations:
    AMAZON_PARTNER_TAG=your_tag
    ```
    Obtain from: https://creators.amazon.in/
+   
+   **Status**: Stubbed (TODO: verify API endpoint and implement request signing)
 
-3. **Flipkart Affiliate API** (production)
+3. **Flipkart Affiliate API** ✅ **Implemented** (production)
    ```env
+   PRICE_PROVIDER=production
    FLIPKART_AFFILIATE_ID=your_id
    FLIPKART_AFFILIATE_TOKEN=your_token
    ```
    Obtain from: https://affiliate.flipkart.com/
+   
+   **API Details:**
+   - Base URL: `https://affiliate-api.flipkart.net/affiliate`
+   - Endpoint: `GET /product/json?id={productId}`
+   - Auth: Headers `Fk-Affiliate-Id` and `Fk-Affiliate-Token`
+   - Rate limit: ~10 requests/min with automatic retry + exponential backoff
+   - Error handling: 404 (not found), 401/403 (auth), 429 (rate limit), 500+ (server)
+   - Parses: MRP, selling price, special price, bank offers, availability
+   - Maps to: listed price, MRP, coupon price, bank offer (with label), effective price
+   
+   **Note**: Implementation based on Flipkart Affiliate API documentation. Response structure may vary - tested with fixture data, not verified against live API.
 
 ### Push Notifications
 
@@ -295,7 +311,8 @@ All endpoints requiring authentication need `Authorization: Bearer <token>` head
 - ✅ Daily digest job (9 AM: "N watched products dropped today")
 - ✅ Cross-retailer price comparison (alerts when ≥5% difference)
 - ✅ Mock price provider (working)
-- ✅ Amazon/Flipkart provider interfaces (TODO: API integration)
+- ✅ Flipkart Affiliate API provider (fully implemented with tests)
+- ✅ Amazon provider interface (TODO: API integration)
 - ✅ Price snapshot deduplication
 - ✅ Alert rules with cooldown
 - ✅ FCM notifications with fallback
@@ -328,25 +345,31 @@ private async callCreatorsAPI(asin: string): Promise<PriceFetchResult> {
 3. Parse response format
 4. Handle location-based price variations
 
-### Flipkart Affiliate API Integration
+### Flipkart Affiliate API Integration ✅ **Complete**
 
-Similar stub exists for Flipkart:
+Full implementation with:
+- ✅ Real API endpoint: `https://affiliate-api.flipkart.net/affiliate/product/json`
+- ✅ Authentication headers: `Fk-Affiliate-Id`, `Fk-Affiliate-Token`
+- ✅ Rate limiting with exponential backoff (429 handling)
+- ✅ Retry logic for server errors (500+)
+- ✅ Error handling: 404 (not found), 401/403 (auth failures)
+- ✅ Price parsing: MRP, selling price, special price, bank offers
+- ✅ Availability detection: in stock / out of stock
+- ✅ Confidence labels: CONFIRMED, CONDITIONAL (with offers), ESTIMATED (out of stock)
+- ✅ Comprehensive unit tests with fixture responses
 
-```typescript
-// apps/api/src/modules/prices/providers/flipkart.provider.ts
-private async callAffiliateAPI(productId: string): Promise<PriceFetchResult> {
-  throw new Error(
-    'TODO: Implement Flipkart Affiliate API integration. ' +
-    'Refer to https://affiliate.flipkart.com/ for API documentation...'
-  );
-}
-```
+**Implementation notes:**
+- Based on Flipkart Affiliate API documentation structure
+- Handles both `productBaseInfoV1` and `productBaseInfo` response formats
+- Parses nested price objects (`{ amount, currency }`) and direct values
+- Extracts bank offer details (type, title, discount amount)
+- Falls back to mock provider when credentials not configured
+- **Not verified against live Flipkart API** - tested with fixture data only
 
-**Next steps:**
-1. Get API documentation from affiliate portal
-2. Implement authentication headers
-3. Parse product feed response
-4. Extract all price variants
+**Known limitations:**
+- Response structure inferred from documentation, may need adjustment for live API
+- Image URL extraction handles both object (`{ '400': url }`) and string formats
+- Availability parsing handles boolean, string ("In Stock"), and field variations
 
 ### Other Production TODOs
 

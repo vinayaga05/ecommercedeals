@@ -349,18 +349,44 @@ docker compose up -d --scale worker=5
 
 **Note**: Amazon provider integration requires completion of TODOs in `amazon.provider.ts`
 
-### 9.2 Flipkart Affiliate API
+### 9.2 Flipkart Affiliate API ✅
 
 1. Sign up at https://affiliate.flipkart.com/
-2. Get your Affiliate ID and Token
-3. Update `.env`:
+2. Navigate to API section in affiliate dashboard
+3. Generate API credentials (Affiliate ID and Token)
+4. Update `.env`:
    ```env
-   FLIPKART_AFFILIATE_ID=your_id
-   FLIPKART_AFFILIATE_TOKEN=your_token
+   PRICE_PROVIDER=production
+   FLIPKART_AFFILIATE_ID=your_affiliate_id
+   FLIPKART_AFFILIATE_TOKEN=your_affiliate_token
    ```
-4. Restart: `docker compose restart api worker`
+5. Restart: `docker compose restart api worker`
 
-**Note**: Flipkart provider integration requires completion of TODOs in `flipkart.provider.ts`
+**Provider Features:**
+- Automatic rate limiting with retry + exponential backoff
+- Handles authentication errors (401/403)
+- Retries on server errors (500+)
+- Parses MRP, selling price, special price, bank offers
+- Detects availability (in stock / out of stock)
+- Confidence labels based on availability and offers
+
+**API Details:**
+- Base URL: `https://affiliate-api.flipkart.net/affiliate`
+- Endpoint: `GET /product/json?id={productId}`
+- Required Headers: `Fk-Affiliate-Id`, `Fk-Affiliate-Token`
+- Rate Limit: ~10 requests/minute (configurable via `RATE_LIMIT_FLIPKART`)
+
+**Testing:**
+After configuration, test with a known Flipkart product ID:
+```bash
+# Via API
+curl -X POST http://localhost:3000/api/products \
+  -H "Authorization: Bearer YOUR_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://www.flipkart.com/product/p/MOBGC9VGHHNHBYZW"}'
+```
+
+Check logs for successful fetch or any errors.
 
 ### 9.3 Firebase Cloud Messaging
 
